@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+.DS_Store
+
+# Generated figures (archived on Zenodo; keep README images in docs/)
+*.tif
+*.tiff
+*.png
+*.svg
+*.pdf
+!docs/**
+
+# Large data and results (archived on Zenodo)
+Fasta_GFF_inputs/*
+!Fasta_GFF_inputs/.gitkeep
+!Fasta_GFF_inputs/README.md
+Figure_4/results/
+Figure_8/figure8_equilibrium_other_groups/
+Figure_8/Figs/
+*/outputs/
