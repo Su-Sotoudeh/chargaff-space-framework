@@ -12,6 +12,23 @@ from matplotlib.gridspec import GridSpec
 #                        USER CONFIG
 # ══════════════════════════════════════════════════════════════
 
+# --- INPUT: ONE master table for ALL taxa (path = config.MASTER_CSV) ---
+# Organisms, organelles, plasmids and viruses are all rows of this file;
+# the 'Group' column (plus 'Genome_Type' for viruses) tells them apart.
+# The Simulation panel is read from config.SIMULATION_CSV (the master table has no simulation).
+
+# --- Filters (same as before) ---
+APPLY_ORG_FILTERS = True            # Chr_ID prefix + 0.9 < A2T_W < 1.1, ONLY for the 8 organism panels
+PLASMID_REQUIRE_BOTH_STRANDS = True  # keep only plasmids with annotation on both strands
+
+# How virus rows are sorted into the + / - / +/- panels:
+#   'annotation' = SAME LOGIC AS THE OLD SCRIPT, from the annotation counts
+#                  (+  : annot_P_A != 0 and annot_C_A == 0
+#                   -  : annot_P_A == 0 and annot_C_A != 0
+#                   +/-: annot_P_A != 0 and annot_C_A != 0)
+#   'coding'     = from the 'Coding' column (Fig 6 logic)
+VIRUS_STRAND_SOURCE = 'annotation'
+
 # --- Colors ---
 COLOR_P = '#C62828'
 COLOR_C = '#1565C0'
@@ -58,6 +75,46 @@ YLIM = {
 }
 
 # ──────────────────────────────────────────────────────────────
+#   PANEL ORDER (rows, top to bottom)
+#   Left side : display name -> group names that may appear in the master CSV
+#   Right side: panel title  -> Group2 label (viruses are split by Genome_Type + Coding)
+# ──────────────────────────────────────────────────────────────
+ORG_GROUPS = ['Chordata', 'Viridiplantae', 'Arthropoda', 'Fungi',
+              'Archaea', 'Bacteria', 'Chloroplast', 'Mitochondria']
+
+# old and new spellings of group names in the CSV  ->  name shown in the figure
+NAME_MAPPING = {
+    'Chordata'     : 'Chordata',
+    'Viride'       : 'Viridiplantae',
+    'Plantae'      : 'Viridiplantae',
+    'Viridiplantae': 'Viridiplantae',
+    'Insect'       : 'Arthropoda',
+    'Arthropoda'   : 'Arthropoda',
+    'Fungi'        : 'Fungi',
+    'Archia'       : 'Archaea',
+    'Archaea'      : 'Archaea',
+    'Bacteria'     : 'Bacteria',
+    'Chloro_plast' : 'Chloroplast',
+    'Chloroplast'  : 'Chloroplast',
+    'Mito'         : 'Mitochondria',
+    'Mitochondria' : 'Mitochondria',
+}
+
+VIRUS_PANELS = [
+    ('+ RNA Virus',   'Virus_RNA+'),
+    ('- RNA Virus',   'Virus_RNA-'),
+    ('+/- RNA Virus', 'Virus_RNA+/-'),
+    ('+ DNA Virus',   'Virus_DNA+'),
+    ('- DNA Virus',   'Virus_DNA-'),
+    ('+/- DNA Virus', 'Virus_DNA+/-'),
+]
+
+GOOD_PREFIXES = [
+    'AC','AE','AL','AM','AP','AY','BA','BX','CM','CP','CR','FN','FR','GK',
+    'HE','HF','HG','L7','LN','LR','LT','NC','NZ','OU','OV','OW','OX','OY','OZ'
+]
+
+# ──────────────────────────────────────────────────────────────
 #   FIGURE MARGINS & SPACING
 # ──────────────────────────────────────────────────────────────
 FIG_SIZE      = (42, 50)
@@ -97,6 +154,26 @@ XLABEL_PAD = 10    # distance of x-axis label from the tick labels
 XLABEL_A2T = "Chromosomes (sorted by A/T(+) − A/T(−))"
 XLABEL_G2C = "Chromosomes (sorted by G/C(+) − G/C(−))"
 
+# Sorting of the virus panels:
+#   'difference' = ALL viruses (+, -, +/-) sorted by A2T_P − A2T_C and G2C_P − G2C_C
+#                  (x-labels = XLABEL_A2T / XLABEL_G2C above, on the bottom row only)
+#   'by_strand'  = + viruses by A2T_P / G2C_P, - viruses by A2T_C / G2C_C,
+#                  +/- viruses by the difference (each virus panel gets its own x-label below)
+VIRUS_SORT_MODE = 'difference'
+
+# + viruses have no C annotation and - viruses have no P annotation, so one side of the
+# difference is empty (NaN) and the whole sort key would be NaN (= random order).
+# True = an empty side counts as ratio 1 (the dashed reference line), so + viruses are
+# ordered by A2T_P − 1 and - viruses by 1 − A2T_C. Rows empty on BOTH sides stay NaN (last).
+SORT_FILL_MISSING = True
+
+XLABEL_A2T_PLUS  = "Chromosomes (sorted by A/T(+))"
+XLABEL_G2C_PLUS  = "Chromosomes (sorted by G/C(+))"
+XLABEL_A2T_MINUS = "Chromosomes (sorted by A/T(−))"
+XLABEL_G2C_MINUS = "Chromosomes (sorted by G/C(−))"
+LABEL_VIRUS_SORT = True   # only used when VIRUS_SORT_MODE = 'by_strand':
+# True = every virus panel shows its own sorting label under it
+
 # ══════════════════════════════════════════════════════════════
 #                     HELPER FUNCTIONS
 # ══════════════════════════════════════════════════════════════
@@ -104,6 +181,18 @@ XLABEL_G2C = "Chromosomes (sorted by G/C(+) − G/C(−))"
 def get_ylim(name, ratio, is_org=True):
     default = DEFAULT_YLIM_ORG if is_org else DEFAULT_YLIM_VP
     return YLIM.get(name, {}).get(ratio, default)
+
+
+def sort_spec(title):
+    """Sorting rule of a right-hand panel:
+    returns (A/T sort column, G/C sort column, A/T x-label, G/C x-label)."""
+    if (VIRUS_SORT_MODE == 'by_strand'
+            and title.endswith('Virus') and not title.startswith('+/-')):
+        if title.startswith('+'):
+            return 'A2T_P', 'G2C_P', XLABEL_A2T_PLUS, XLABEL_G2C_PLUS
+        if title.startswith('-'):
+            return 'A2T_C', 'G2C_C', XLABEL_A2T_MINUS, XLABEL_G2C_MINUS
+    return 'A2T_P-A2T_C', 'G2C_P-G2C_C', XLABEL_A2T, XLABEL_G2C
 
 
 def add_mean_band(ax, series, color):
@@ -139,6 +228,10 @@ def plot_panel(ax, df, cols_colors, sort_col,
             ax.scatter(x, dfs[col], color=color,
                        s=DOT_SIZE, zorder=4, rasterized=True)
 
+    if len(dfs) == 0:
+        ax.text(0.5, 0.5, 'no data', transform=ax.transAxes,
+                ha='center', va='center', fontsize=FONT_TICK, color='gray')
+
     ax.set_ylim(*ylim)
     ax.set_xlim(0, max(len(x) - 1, 1))
 
@@ -159,92 +252,126 @@ def plot_panel(ax, df, cols_colors, sort_col,
     ax.spines['top'].set_visible(False)
     ax.spines['right'].set_visible(False)
 
+
+# ── Loading helpers (single master table) ─────────────────────
+
+def assign_group2(d):
+    """Add 'Group2'.
+    Non-virus rows : the Group name, translated by NAME_MAPPING (old/new spellings).
+    Virus rows     : Virus_<RNA|DNA><+|-|+/->
+                     RNA/DNA from Genome_Type; the strand from VIRUS_STRAND_SOURCE."""
+    for need in ('Group', 'Genome_Type'):
+        if need not in d.columns:
+            raise SystemExit(f"Column '{need}' is missing in the master CSV.")
+
+    grp = d['Group'].astype(str).str.strip()
+    gt  = d['Genome_Type'].astype(str).str.upper()
+    nuc = pd.Series(np.select([gt.str.contains('RNA'), gt.str.contains('DNA')],
+                              ['RNA', 'DNA'], default=''), index=d.index)
+
+    if VIRUS_STRAND_SOURCE == 'coding':
+        if 'Coding' not in d.columns:
+            raise SystemExit("Column 'Coding' is missing in the master CSV.")
+        cd = d['Coding'].astype(str).str.replace(' ', '', regex=False)
+        strand = pd.Series(np.select([cd.eq('+'), cd.eq('-')],
+                                     ['+', '-'], default='+/-'), index=d.index)
+    else:   # 'annotation' - old script logic
+        for need in ('annot_P_A', 'annot_C_A'):
+            if need not in d.columns:
+                raise SystemExit(f"Column '{need}' is missing in the master CSV.")
+        p = pd.to_numeric(d['annot_P_A'], errors='coerce').fillna(0)
+        c = pd.to_numeric(d['annot_C_A'], errors='coerce').fillna(0)
+        strand = pd.Series(np.select([(p != 0) & (c == 0),
+                                      (p == 0) & (c != 0),
+                                      (p != 0) & (c != 0)],
+                                     ['+', '-', '+/-'], default='none'), index=d.index)
+
+    ok = (nuc != '') & (strand != 'none')
+    virus_label = ('Virus_' + nuc + strand).where(ok, 'Unknown')
+
+    d['Group2'] = np.where(grp.eq('Viruses'), virus_label, grp.replace(NAME_MAPPING))
+    return d
+
+
+def prepare_ratios(d):
+    """Make count / ratio columns numeric.
+    A2T_P, A2T_C, G2C_P, G2C_C are only FILLED (from the annotation counts) where they are
+    empty in the CSV; existing values are never overwritten.
+    Then add the sorting columns A2T_P-A2T_C and G2C_P-G2C_C."""
+    count_cols = [f'annot_{s}_{b}' for s in 'PC' for b in 'ATGC']
+    ratio_cols = [f'{r}_{k}' for r in ('A2T', 'G2C') for k in ('P', 'C', 'W', 'annot', 'anno')]
+    for c in count_cols + ratio_cols:
+        if c in d.columns:
+            d[c] = pd.to_numeric(d[c], errors='coerce')
+
+    pairs = {'A2T_P': ('annot_P_A', 'annot_P_T'), 'A2T_C': ('annot_C_A', 'annot_C_T'),
+             'G2C_P': ('annot_P_G', 'annot_P_C'), 'G2C_C': ('annot_C_G', 'annot_C_C')}
+    for col, (num, den) in pairs.items():
+        if num in d.columns and den in d.columns:
+            calc = d[num] / d[den].replace(0, np.nan)
+            d[col] = d[col].combine_first(calc) if col in d.columns else calc
+
+    for r in ('A2T', 'G2C'):
+        if f'{r}_P' in d.columns and f'{r}_C' in d.columns:
+            P, C = d[f'{r}_P'], d[f'{r}_C']
+            if SORT_FILL_MISSING:
+                d[f'{r}_P-{r}_C'] = (P.fillna(1) - C.fillna(1)).where(P.notna() | C.notna())
+            else:
+                d[f'{r}_P-{r}_C'] = P - C
+    return d
+
+
 # ══════════════════════════════════════════════════════════════
-#                       LOAD DATASETS
+#                  LOAD THE MASTER DATASET (ONCE)
 # ══════════════════════════════════════════════════════════════
 
-df1 = pd.read_csv(
+df = pd.read_csv(
     config.require(config.MASTER_CSV, 'Copy the master table into Dataframes/ (see README.md).'),
     low_memory=False
 )
-df1 = df1[df1['Group'] != 'Mammals'].copy()
-df1['A2T_P-A2T_C'] = df1['A2T_P'] - df1['A2T_C']
-df1['G2C_P-G2C_C'] = df1['G2C_P'] - df1['G2C_C']
+print(f"Loaded {len(df):,} rows, {len(df.columns)} columns")
 
-name_mapping = {
-    'Chordata'     : 'Chordata',
-    'Viride'       : 'Viridiplantae',
-    'Plantae'      : 'Viridiplantae',
-    'Viridiplantae': 'Viridiplantae',
-    'Insect'       : 'Arthropoda',
-    'Fungi'        : 'Fungi',
-    'Archia'       : 'Archaea',
-    'Bacteria'     : 'Bacteria',
-    'Chloro_plast' : 'Chloroplast',
-    'Mito'         : 'Mitochondria',
-}
-df1['Group'] = df1['Group'].replace(name_mapping)
-df1['Prefix'] = df1['Chr_ID'].str[:2]
+df = assign_group2(df)
+df = prepare_ratios(df)
 
-good_prefixes = [
-    'AC','AE','AL','AM','AP','AY','BA','BX','CM','CP','CR','FN','FR','GK',
-    'HE','HF','HG','L7','LN','LR','LT','NC','NZ','OU','OV','OW','OX','OY','OZ'
-]
-df1 = df1[df1['Prefix'].isin(good_prefixes)]
-df1 = df1[(df1['A2T_W'] > 0.9) & (df1['A2T_W'] < 1.1)]
-target_groups = df1['Group'].unique()[:8]
+print("\nGroup2 counts in the master table:")
+print(df['Group2'].value_counts(dropna=False).to_string())
 
-# Debug — verify group names from your CSV
-print("Detected groups:", list(target_groups))
+# ── Left side: the 8 organism / organelle panels ──────────────
+org = df[df['Group2'].isin(ORG_GROUPS)].copy()
+if APPLY_ORG_FILTERS:
+    if 'Chr_ID' in org.columns:
+        org = org[org['Chr_ID'].astype(str).str[:2].isin(GOOD_PREFIXES)]
+    if 'A2T_W' in org.columns:
+        org = org[(org['A2T_W'] > 0.9) & (org['A2T_W'] < 1.1)]
 
-v_main = pd.read_csv(
-    config.require(config.VIRUS_CSV),
-    low_memory=False
-)
-v_ref = pd.read_csv(
-    config.require(config.VIRUS_REF_CSV)
-)[['Assembly', 'Molecule_type']]
-
-df2 = v_main.merge(v_ref, left_on='Name', right_on='Assembly', how='inner')
-df2['Genome'] = df2['Molecule_type']
-df2['A2T_P-A2T_C'] = df2['A2T_P'] - df2['A2T_C']
-df2['G2C_P-G2C_C'] = df2['G2C_P'] - df2['G2C_C']
-
-conditions = {
-    '+'  : (df2['annot_P_A'] != 0) & (df2['annot_C_A'] == 0),
-    '-'  : (df2['annot_P_A'] == 0) & (df2['annot_C_A'] != 0),
-    '+/-': (df2['annot_P_A'] != 0) & (df2['annot_C_A'] != 0),
-}
-virus_layout = [
-    ('RNA', '+'), ('RNA', '-'), ('RNA', '+/-'),
-    ('DNA', '+'), ('DNA', '-'), ('DNA', '+/-'),
-]
-
-df3 = pd.read_csv(
-    config.require(config.PLASMID_CSV)
-)
-df3 = df3[(df3['annot_P_A'] != 0) & (df3['annot_C_A'] != 0)]
-df3['A2T_P-A2T_C'] = df3['A2T_P'] - df3['A2T_C']
-df3['G2C_P-G2C_C'] = df3['G2C_P'] - df3['G2C_C']
-
-results_df = pd.read_csv(
-    config.require(config.SIMULATION_CSV, 'Copy simulation_results.csv (artificial-chromosome simulation) into Dataframes/.')
-)
-results_df['A2T_P-A2T_C'] = results_df['A2T_P'] - results_df['A2T_C']
-results_df['G2C_P-G2C_C'] = results_df['G2C_P'] - results_df['G2C_C']
-
-# ══════════════════════════════════════════════════════════════
-#                    BUILD PANEL LISTS
-# ══════════════════════════════════════════════════════════════
-
+# ── Right side: 6 virus panels, plasmids, simulation ──────────
 right_datasets = []
-for genome, cond in virus_layout:
-    sub = df2[
-        conditions[cond] & df2['Genome'].str.contains(genome, na=False)
-        ].copy()
-    right_datasets.append((f"{cond} {genome} Virus", sub))
-right_datasets.append(('Plasmids',   df3))
-right_datasets.append(('Simulation', results_df))
+for title, g2 in VIRUS_PANELS:
+    right_datasets.append((title, df[df['Group2'] == g2].copy()))
+
+plasmids = df[df['Group2'] == 'Plasmids'].copy()
+if PLASMID_REQUIRE_BOTH_STRANDS:
+    plasmids = plasmids[(plasmids['annot_P_A'] != 0) & (plasmids['annot_C_A'] != 0)]
+right_datasets.append(('Plasmids', plasmids))
+
+sim = prepare_ratios(pd.read_csv(
+    config.require(config.SIMULATION_CSV,
+                   'Copy simulation_results.csv (artificial-chromosome simulation) into Dataframes/.')
+))
+if sim.empty:
+    print("WARNING: no Simulation data -> that panel will be empty.")
+right_datasets.append(('Simulation', sim))
+
+print("\nRows per panel:")
+for g in ORG_GROUPS:
+    print(f"  {g:<16} {int((org['Group2'] == g).sum()):>9,}")
+for title, d in right_datasets:
+    print(f"  {title:<16} {len(d):>9,}")
+
+# ══════════════════════════════════════════════════════════════
+#                    COLUMN / COLOR LISTS
+# ══════════════════════════════════════════════════════════════
 
 org_cols_A2T = [('A2T_P', COLOR_P), ('A2T_C', COLOR_C),
                 ('A2T_W', COLOR_W), ('A2T_annot', COLOR_A)]
@@ -254,10 +381,12 @@ vp_cols_A2T  = [('A2T_P', COLOR_P), ('A2T_C', COLOR_C),
                 ('A2T_W', COLOR_W), ('A2T_annot', COLOR_A)]
 vp_cols_G2C  = [('G2C_P', COLOR_P), ('G2C_C', COLOR_C),
                 ('G2C_W', COLOR_W), ('G2C_annot', COLOR_A)]
+# Simulation: the old file called the ± column "A2T_anno"; the master calls it "A2T_annot".
+# Columns that do not exist are skipped automatically, so both spellings are listed.
 sim_cols_A2T = [('A2T_P', COLOR_P), ('A2T_C', COLOR_C),
-                ('A2T_anno', COLOR_A)]
+                ('A2T_anno', COLOR_A), ('A2T_annot', COLOR_A)]
 sim_cols_G2C = [('G2C_P', COLOR_P), ('G2C_C', COLOR_C),
-                ('G2C_anno', COLOR_A)]
+                ('G2C_anno', COLOR_A), ('G2C_annot', COLOR_A)]
 
 # ══════════════════════════════════════════════════════════════
 #                      BUILD FIGURE
@@ -292,8 +421,8 @@ gs = GridSpec(
 # ── 8 Rows ───────────────────────────────────────────────────
 for row in range(N_ROWS):
 
-    group = target_groups[row]
-    dfg   = df1[df1['Group'] == group]
+    group = ORG_GROUPS[row]
+    dfg   = org[org['Group2'] == group]
 
     # x-axis labels only on the bottom row
     xl_a2t = XLABEL_A2T if row == LAST_ROW else None
@@ -326,15 +455,18 @@ for row in range(N_ROWS):
     is_sim  = (r_title == 'Simulation')
     ra_cols = sim_cols_A2T if is_sim else vp_cols_A2T
     rg_cols = sim_cols_G2C if is_sim else vp_cols_G2C
-    sa = 'A2T_P-A2T_C'
-    sg = 'G2C_P-G2C_C'
+    sa, sg, lab_a, lab_g = sort_spec(r_title)
+    show_lab = (row == LAST_ROW) or (VIRUS_SORT_MODE == 'by_strand'
+                                     and LABEL_VIRUS_SORT and r_title.endswith('Virus'))
+    xr_a = lab_a if show_lab else None
+    xr_g = lab_g if show_lab else None
 
     # Right A2T — col 3
     ax = fig.add_subplot(gs[row, 3])
     plot_panel(ax, r_df, ra_cols, sa,
                r_title,
                get_ylim(r_title, 'A2T', is_org=False),
-               show_ylabel=True, xlabel=xl_a2t)
+               show_ylabel=True, xlabel=xr_a)
     if row == 0:
         ax.set_title('A2T Ratio', fontsize=FONT_COL_HEADER,
                      fontweight='bold', pad=12)
@@ -344,7 +476,7 @@ for row in range(N_ROWS):
     plot_panel(ax, r_df, rg_cols, sg,
                r_title,
                get_ylim(r_title, 'G2C', is_org=False),
-               show_ylabel=False, xlabel=xl_g2c)
+               show_ylabel=False, xlabel=xr_g)
     if row == 0:
         ax.set_title('G2C Ratio', fontsize=FONT_COL_HEADER,
                      fontweight='bold', pad=12)
@@ -356,7 +488,7 @@ x_sep = (MARGIN_LEFT + (MARGIN_RIGHT - MARGIN_LEFT) *
          sum(COL_WIDTHS))
 
 fig.add_artist(
-    plt.Line2D(
+    Line2D(
         [x_sep, x_sep], [GRID_BOTTOM, MARGIN_TOP],
         transform=fig.transFigure,
         color='black', linewidth=2.0,
@@ -417,22 +549,22 @@ fig.legend(
     labelspacing   = 0.8,            # space between rows
 )
 
-
-
 # ══════════════════════════════════════════════════════════════
 #   SAVE FOR PUBLICATION
 # ══════════════════════════════════════════════════════════════
 
 SAVE_NAME = str(config.output_dir(2) / 'Fig_2')
 DPI = 300
+SAVE_PDF = False    # True = also write a vector PDF
 
-# ── 1. PDF — vector, best for journals (uncomment to use) ─────
-'''plt.savefig(f'{SAVE_NAME}.pdf',
-            dpi=600,                  # DPI only affects rasterized elements inside
-            format='pdf',
-            bbox_inches=None,         # respect your margins exactly
-            facecolor='white',
-            edgecolor='none')'''
+# ── 1. PDF — vector, best for journals ────────────────────────
+if SAVE_PDF:
+    plt.savefig(f'{SAVE_NAME}.pdf',
+                dpi=600,                  # DPI only affects rasterized elements inside
+                format='pdf',
+                bbox_inches=None,         # respect your margins exactly
+                facecolor='white',
+                edgecolor='none')
 
 # ── 2. TIFF — most journals accept this as primary format ─────
 plt.savefig(f'{SAVE_NAME}-{DPI}.tiff',

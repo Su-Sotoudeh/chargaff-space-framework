@@ -19,7 +19,7 @@ from Bio import SeqIO
 MIN_CHROMOSOME_BP = 5_000_000
 MAX_WORKERS = 8
 
-INPUT_PATH = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fastas/<organism>/ (see Fasta_GFF_inputs/README.md)."))   # Fasta_GFF_inputs/Masked_Fastas/<organism>/
+INPUT_PATH = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fasta/<organism>/ (see Fasta_GFF_inputs/README.md)."))   # Fasta_GFF_inputs/Masked_Fasta/<organism>/
 GROUP = "Mammals"
 
 

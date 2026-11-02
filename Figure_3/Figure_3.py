@@ -1,8 +1,16 @@
+import os
 import sys as _sys
 from pathlib import Path as _Path
 _sys.path.insert(0, str(next(p for p in _Path(__file__).resolve().parents if (p / "config.py").exists())))
 import config  # noqa: E402  (all input/output paths live in config.py)
-import os
+
+# Input : Dataframes/Mammals_CSV/<organism>/<chromosome>.csv
+# Output: Figure_3/outputs/
+MAMMALS_CSV_DIR = config.require(
+    config.MAMMALS_CHR_DIR,
+    "Put the per-chromosome tables into Dataframes/Mammals_CSV/<organism>/<chromosome>.csv (see Dataframes/README.md).")
+FIGURE_OUT_DIR = config.output_dir(3)
+
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -12,10 +20,10 @@ from matplotlib.patches import Patch
 # =====================================================================
 # 1. CONFIG
 # =====================================================================
-FOLDERS_PATH = str(config.require(config.MAMMALS_CHR_DIR, "Put the per-chromosome tables in Dataframes/Mammals/<organism>/<chromosome>.csv"))
+FOLDERS_PATH = str(MAMMALS_CSV_DIR)
 EXCLUDE_FOLDERS = None  # ["Mus"]
 MIN_CHR_MB = 10
-OUT_PREFIX = str(config.output_dir(3) / "Figure_3")
+OUT_PREFIX = str(FIGURE_OUT_DIR / "Figure_3")
 
 PLOT_STYLE = "bar"          # "bar" or "pointrange", for panels A/B
 PORTION_STYLE = "bar"       # "bar" or "violin", for panel D (% of chromosome)
@@ -556,7 +564,7 @@ def draw_cross_heatmap(ax, cross_dict, panel_label, vmax=None):
 
     cbar = plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04, extend="max")
     cbar.set_label(r"Deviation from parity   $\sqrt{AT_{skew}^2+GC_{skew}^2}$" + "\n(green = 0 = perfect parity)",
-               labelpad=15)  # Increase this value to move label further right
+                   labelpad=15)  # Increase this value to move label further right
 
 
     ax.set_title(panel_label, loc="left", fontweight="bold", fontsize=12, pad=10)

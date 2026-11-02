@@ -94,7 +94,7 @@ VERSION = "2.2"
 # 1. INPUT / OUTPUT
 # =============================================================================
 
-INPUT_ROOT = str(config.MASKED_FASTAS)   # Fasta_GFF_inputs/Masked_Fastas/<organism>/
+INPUT_ROOT = str(config.MASKED_FASTAS)   # Fasta_GFF_inputs/Masked_Fasta/<organism>/
 OUTPUT_DIR = str(config.output_dir(4))   # Figure_4/outputs
 ORGANISM = "Human_T2T"
 MAIN_CHROMOSOME: str | None = None          # None = first valid chromosome of ORGANISM (chromosome 1)

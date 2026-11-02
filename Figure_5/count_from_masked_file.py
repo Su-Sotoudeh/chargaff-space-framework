@@ -31,7 +31,7 @@ warnings.filterwarnings('ignore')
 
 # --- CONFIGURATION ---
 K = 4                             # <<< k-mer length (change this one number for 4, 5, 6 ...)
-one_Trabite = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fastas/<organism>/ (see Fasta_GFF_inputs/README.md).")) + '/'   # Fasta_GFF_inputs/Masked_Fastas/
+one_Trabite = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fasta/<organism>/ (see Fasta_GFF_inputs/README.md).")) + '/'   # Fasta_GFF_inputs/Masked_Fasta/
 output_file = str(config.output_dir(5) / f'{K}k_kmers_normalised_MCRRC_PC0UW.csv')
 FORCE_RESTART = False
 NUM_WORKERS = max(1, cpu_count()-1)  # Use fewer workers to avoid memory issues

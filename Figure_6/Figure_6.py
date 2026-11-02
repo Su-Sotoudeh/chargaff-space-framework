@@ -128,7 +128,7 @@ STRIP_MARKER_SIZE  = 2
 
 # ---- Sampling caps ---------------------------------------------------------
 SAMPLE_LIMIT_MAIN      = None
-SAMPLE_LIMIT_ORG_VIRUS = 5000
+SAMPLE_LIMIT_ORG_VIRUS = 2000
 SAMPLE_RANDOM_STATE    = 1
 
 # ---- Bar panel E -----------------------------------------------------------

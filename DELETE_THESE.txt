@@ -1,0 +1,9 @@
+Delete these from your clone after copying the update over it (they were replaced or are not needed):
+
+Figure_5/all_functions.py                 (moved to the repository root: all_functions.py)
+Genome_Data/                              (empty folder, not needed)
+Download_Data/docs/DATA_DOWNLOAD.md       (replaced by Download_Data/README.md)
+
+Commands, run inside your clone:
+  git rm -r --ignore-unmatch Figure_5/all_functions.py Genome_Data Download_Data/docs
+  rm -rf Genome_Data Download_Data/docs Figure_5/all_functions.py

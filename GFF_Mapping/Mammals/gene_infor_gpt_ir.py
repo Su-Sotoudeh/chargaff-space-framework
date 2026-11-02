@@ -225,7 +225,7 @@ def run_analysis(input_root, group_name):
 
 if __name__ == "__main__":
     # Change these paths as needed
-    INPUT_DIR = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fastas/<organism>/ (see Fasta_GFF_inputs/README.md)."))   # Fasta_GFF_inputs/Masked_Fastas/<organism>/
+    INPUT_DIR = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fasta/<organism>/ (see Fasta_GFF_inputs/README.md)."))   # Fasta_GFF_inputs/Masked_Fasta/<organism>/
     GROUP = "Mammals"
 
     run_analysis(INPUT_DIR, GROUP)

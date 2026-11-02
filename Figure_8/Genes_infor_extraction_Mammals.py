@@ -28,7 +28,7 @@ import collections
 # =========================================================
 NAME = "Mammals"  # Group name matching directory structure
 
-INPUT_ROOT = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fastas/<organism>/ (see Fasta_GFF_inputs/README.md)."))   # Fasta_GFF_inputs/Masked_Fastas/<organism>/
+INPUT_ROOT = str(config.require(config.MASKED_FASTAS, "Put the masked FASTA files into Fasta_GFF_inputs/Masked_Fasta/<organism>/ (see Fasta_GFF_inputs/README.md)."))   # Fasta_GFF_inputs/Masked_Fasta/<organism>/
 
 OUTPUT_CSV = str(config.output_dir(8, "Single_annote_composition") / f"{NAME}_elements_by_chromosome.csv")
 

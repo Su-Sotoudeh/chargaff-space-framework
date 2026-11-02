@@ -19,13 +19,14 @@ output location comes from [`config.py`](config.py), computed relative to the re
 
 ## 2. Where to put your data
 
-The data are **not** in git. Create/copy them into these two folders (they exist after
-cloning, each with a README that lists the exact file names):
+Figures 1, 2, 3, 6, 7 and the Figure 5 panels A–C run directly after cloning (their small input
+tables are in the repository). Genome files are large and are **not** in git; put them into
+these two folders (they exist after cloning, each with a README that lists the exact file names):
 
 | Put here | What | Details |
 |---|---|---|
-| [`Dataframes/`](Dataframes/README.md) | the `.csv` tables (master table, virus / plasmid tables, …) | `Dataframes/Cleaned_datafram_whole_organims_2026_07.csv` etc. |
-| [`Fasta_GFF_inputs/`](Fasta_GFF_inputs/README.md) | genome files: `Masked_Fastas/<organism>/*.fna(.gz)` and `<Group>/ncbi_dataset/data/<assembly>/*.fna, *.gff` | one sub-folder per group |
+| [`Dataframes/`](Dataframes/README.md) | the `.csv` tables (master table, simulation table, per-chromosome mammal tables) | `Cleaned_datafram_whole_organims_2026_07.csv`, `simulation_results.csv`, `Mammals_CSV/` — small, **included in the repository** |
+| [`Fasta_GFF_inputs/`](Fasta_GFF_inputs/README.md) | genome files: `Masked_Fasta/<organism>/*.fna.gz` and `<Group>/ncbi_dataset/data/<assembly>/*.fna, *.gff` | not in git; download with [`Download_Data/`](Download_Data/README.md), mask with [`RepeatMasker/`](RepeatMasker/README.md) |
 
 If the data live elsewhere (external drive, HPC), do not move them — point to them:
 
@@ -50,7 +51,7 @@ python Figure_3/Figure_3.py
 python Figure_4/Figure_4.py --help             # options: --organism, --workers, ...
 python Figure_6/Figure_6.py
 python Figure_7/code/run_pipeline.py --n-jobs 8   # see Figure_7/code/README.md
-python Figure_8/Figure_8_ABC_std.py
+python Figure_8/Figure_8_Panel_ABC_std.py
 ```
 
 Figure 5 (k-mer analysis) and Figure 8 need intermediate tables, so run in this order:
@@ -58,7 +59,7 @@ Figure 5 (k-mer analysis) and Figure 8 need intermediate tables, so run in this 
 | Figure | Step 1 (reads `Fasta_GFF_inputs/`) | Step 2 (figure) |
 |---|---|---|
 | 5 | `Figure_5/count_from_masked_file.py` (all classes) and `Figure_5/Figure_5_<CDS,UTR,INT,SINE,LINE,LTR,DNA>.py` | `Figure_5/Figure_5_combined_all_elements.py`, then `Figure_5/Figure_5_suplementry_table.py` |
-| 8 | `Figure_8/Genes_info_extraction.py` (set `NAME`) or `Figure_8/Genes_infor_extraction_Mammals.py`, then `Figure_8/Extend_information.py` (or `…_for_Mammals.py`) | `Figure_8/Figure_8_ABC_std.py` |
+| 8 | `Figure_8/Genes_info_extraction.py` (set `NAME`) or `Figure_8/Genes_infor_extraction_Mammals.py`, then `Figure_8/Extend_information.py` (or `…_for_Mammals.py`) | `Figure_8/Figure_8_Panel_ABC_std.py` |
 
 `GFF_Mapping/<Group>/` holds the scripts that turn the NCBI FASTA + GFF files of each group
 into the per-chromosome tables (the master table is built from them).
@@ -84,6 +85,10 @@ Dataframes/          INPUT tables (.csv)           -- not in git
 Fasta_GFF_inputs/    INPUT genome files            -- not in git
 Figure_1 … Figure_8/ figure scripts (+ outputs/)
 GFF_Mapping/         FASTA + GFF → tables, one folder per taxonomic group
+Download_Data/       NCBI Datasets install guide + download scripts   (README inside)
+RepeatMasker/        mammal pipeline: split, RepeatMasker, tables       (README inside)
+Masking_GFF_OUT/     RepeatMasker + GFF → symbol-encoded masked FASTA
+all_functions.py     shared FASTA / masking functions (Figure 5, masking, GFF_Mapping)
 ```
 
 ## 6. Inputs produced outside this repository
@@ -93,8 +98,8 @@ with the data archive (or add the generating code) so others can reproduce every
 
 | Input | Needed by | Comes from |
 |---|---|---|
-| `Fasta_GFF_inputs/Masked_Fastas/` | Figures 4, 5, 8, `GFF_Mapping/Mammals/` | RepeatMasker / Dfam run and symbol encoding of the FASTA files (the scripts here only decode them) |
-| `Dataframes/Mammals/<organism>/<chromosome>.csv` | Figure 3 | per-chromosome composition tables |
+| `Fasta_GFF_inputs/Masked_Fasta/` | Figures 4, 5, 8, `GFF_Mapping/Mammals/` | `RepeatMasker/` (see its README) then `Masking_GFF_OUT/produce_masked_fna.py` |
+| `Dataframes/Mammals_CSV/<organism>/<chromosome>.csv` | Figure 3 | `RepeatMasker/Automation.py` then `RepeatMasker/transfer_CSV_files.py` |
 | `Dataframes/figure8_equilibrium_other_groups/*_sampling_results.csv` | Figure 8 | fraction-sampling experiment |
 | `Dataframes/simulation_results.csv` | Figure 2 | artificial-chromosome simulation |
 | `Figure_5/outputs/4k_kmers_by_bumber_MCRRC_PC0UW.csv` (raw k-mer counts) | Figure 5, panel D | raw-count version of `count_from_masked_file.py` output |

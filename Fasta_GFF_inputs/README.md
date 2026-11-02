@@ -4,9 +4,12 @@ Put the genome files here. They are **not** stored in git (see `.gitignore`).
 
 ```
 Fasta_GFF_inputs/
-├── Masked_Fastas/                      RepeatMasker-masked, symbol-encoded FASTA
-│   └── <organism>/                     one folder per organism
-│       └── <chromosome>.fna(.gz) ...   (.fna / .fa / .fasta, optionally gzipped)
+├── Mammals/<organism>/                 RepeatMasker work folder: <chr>.fna, <chr>.fna.out, <chr>.csv, *.gff.gz
+│                                       (made by RepeatMasker/Automation.py)
+│
+├── Masked_Fasta/                       RepeatMasker-masked, symbol-encoded FASTA
+│   └── <organism>/<chromosome>.fna.gz  one folder per organism, one file per chromosome
+│                                       (made by Masking_GFF_OUT/produce_masked_fna.py)
 │
 └── <Group>/ncbi_dataset/data/          unzipped NCBI genome package, one folder per group
     └── <assembly accession>/
@@ -19,12 +22,14 @@ Fasta_GFF_inputs/
 For `Mitochondrion` and `Chloroplast` the file `organelle_gene_report.csv` also sits in
 `ncbi_dataset/data/`.
 
-An NCBI package downloaded with `datasets download genome ...` and unzipped into
-`Fasta_GFF_inputs/<Group>/` already has the `ncbi_dataset/data/...` layout.
+Download everything with the scripts in `Download_Data/` (see `Download_Data/README.md`);
+they create exactly this layout. Mammal genomes are the part of `Chordata` listed in
+`RepeatMasker/mamals_refrence_annotated_2025_7_12.csv`; see `RepeatMasker/README.md`.
 
 | Folder | Used by |
 |---|---|
-| `Masked_Fastas/` | Figure 4, Figure 5 (`count_from_masked_file.py`, `Figure_5_<class>.py`), Figure 8 (`Genes_infor_extraction_Mammals.py`), `GFF_Mapping/Mammals/` |
+| `Masked_Fasta/` | Figure 4, Figure 5 (`count_from_masked_file.py`, `Figure_5_<class>.py`), Figure 8 (`Genes_infor_extraction_Mammals.py`), `GFF_Mapping/Mammals/` |
+| `Mammals/` | `RepeatMasker/`, `Masking_GFF_OUT/produce_masked_fna.py` |
 | `<Group>/ncbi_dataset/data/` | `GFF_Mapping/<Group>/`, Figure 8 (`Genes_info_extraction.py`, set `NAME` at the top) |
 
 The folder can live somewhere else (e.g. a large drive): set the environment variable
